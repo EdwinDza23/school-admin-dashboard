@@ -1,0 +1,7 @@
+{
+  "name": "SFS School Admin Dashboard",
+  "description": "A professional, role-based school management system for SFS School, featuring modules for events, achievements, blogs, gallery, admissions, and staff management.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
