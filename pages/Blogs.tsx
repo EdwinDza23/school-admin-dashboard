@@ -90,7 +90,7 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
   const [formData, setFormData] = useState<Partial<BlogPost>>(INITIAL_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDataPreview, setShowDataPreview] = useState(false);
-  
+
   const publishedCount = useMemo(() => blogs.filter(b => b.isPublished).length, [blogs]);
   const paragraphArrayPreview = useMemo(() => convertToParagraphArray(formData.content || ''), [formData.content]);
 
@@ -102,6 +102,7 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
     if (!formData.authorName?.trim()) newErrors.authorName = 'Author Name is required';
     if (!formData.authorRole?.trim()) newErrors.authorRole = 'Author Role is required';
     if (!formData.publishDate) newErrors.publishDate = 'Publish Date is required';
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -121,14 +122,19 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
   };
 
   const handleSave = () => {
-    if (!validate()) return;
+    if (!validate()) {
+      // Small visual indicator or scroll to error could be added here
+      return;
+    }
+
     if (formData.isPublished) {
       const isCurrentlyPublished = blogs.find(b => b.id === editingId)?.isPublished;
       if (!isCurrentlyPublished && publishedCount >= 6) {
-        alert('Maximum of 6 published articles allowed.');
+        alert('Institutional Limit: Maximum of 6 active publications allowed.');
         return;
       }
     }
+
     if (editingId) {
       setBlogs(prev => prev.map(b => b.id === editingId ? { ...b, ...formData } as BlogPost : b));
     } else {
@@ -138,22 +144,9 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
     setIsModalOpen(false);
   };
 
-  const confirmClose = () => {
-    const isDirty = JSON.stringify(formData) !== JSON.stringify(editingId ? blogs.find(b => b.id === editingId) : INITIAL_FORM);
-    if (!isDirty || confirm('Discard unsaved changes?')) setIsModalOpen(false);
-  };
-
-  const openDeleteConfirmation = (blog: BlogPost) => {
-    setBlogToDelete(blog);
-    setIsDeleteModalOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (blogToDelete) {
-      setBlogs(prev => prev.filter(b => b.id !== blogToDelete.id));
-      setIsDeleteModalOpen(false);
-      setBlogToDelete(null);
-    }
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setErrors({});
   };
 
   const formatDate = (dateStr: string) => {
@@ -263,7 +256,7 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
                      <Edit3 size={16} />
                    </button>
                    <button 
-                     onClick={() => openDeleteConfirmation(blog)}
+                     onClick={() => { setBlogToDelete(blog); setIsDeleteModalOpen(true); }}
                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                      title="Delete Post"
                    >
@@ -277,26 +270,26 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={confirmClose}
+        onClose={closeModal}
         title={editingId ? 'Modify Article' : 'Compose New Article'}
         footer={
           <div className="flex justify-between items-center w-full">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
                <button 
                  type="button" 
                  onClick={() => setFormData(prev => ({...prev, isPublished: !prev.isPublished}))} 
-                 className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${formData.isPublished ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${formData.isPublished ? 'bg-blue-600' : 'bg-slate-200'}`}
                >
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${formData.isPublished ? 'left-5.5' : 'left-0.5'}`} />
+                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.isPublished ? 'translate-x-6' : 'translate-x-1'}`} />
                </button>
-               <span className="text-[12px] font-medium text-slate-500 uppercase tracking-widest">
-                 {formData.isPublished ? 'Published to Web' : 'Private Draft'}
+               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                 {formData.isPublished ? 'Live Publication' : 'Private Draft'}
                </span>
             </div>
             <div className="flex gap-3">
               <button 
                 type="button" 
-                onClick={confirmClose} 
+                onClick={closeModal} 
                 className="px-6 py-2.5 text-slate-500 font-medium hover:bg-slate-50 rounded-[10px] transition-colors text-[13px]"
               >
                 Cancel
@@ -313,6 +306,16 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
         }
       >
         <div className="space-y-10">
+          {Object.keys(errors).length > 0 && (
+            <div className="bg-rose-50 border border-rose-100 p-4 rounded-[12px] flex items-start gap-3 text-rose-600 animate-in fade-in duration-300">
+               <AlertCircle size={18} className="shrink-0 mt-0.5" />
+               <div className="space-y-1">
+                 <p className="text-[13px] font-bold uppercase tracking-wider">Missing Required Information</p>
+                 <p className="text-[12px] font-medium opacity-80 leading-relaxed">Please ensure all starred fields are populated before committing the article to the repository.</p>
+               </div>
+            </div>
+          )}
+
           <div className="space-y-6">
              <div className="flex items-center justify-between border-b border-slate-50 pb-2">
                <div className="flex items-center gap-2 text-[11px] font-medium text-blue-600 uppercase tracking-widest">
@@ -367,6 +370,15 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
                     placeholder="Short summary for indexing..." 
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-0.5">Cover Asset URL *</label>
+                  <input 
+                    value={formData.coverImageUrl} 
+                    onChange={e => setFormData({...formData, coverImageUrl: e.target.value})} 
+                    className={`w-full px-4 py-2.5 bg-white border rounded-[12px] text-[13px] text-slate-600 outline-none transition-all ${errors.coverImageUrl ? 'border-rose-300 ring-4 ring-rose-50' : 'border-slate-200 focus:border-blue-400 shadow-sm focus:ring-4 focus:ring-blue-50'}`} 
+                    placeholder="https://images.unsplash.com/..." 
+                  />
+                </div>
              </div>
           </div>
 
@@ -412,16 +424,16 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-0.5">Author Name *</label>
-                        <input value={formData.authorName} onChange={e => setFormData({...formData, authorName: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-[12px] text-[13px] font-medium text-slate-700 outline-none focus:border-blue-300 shadow-sm" placeholder="Name" />
+                        <input value={formData.authorName} onChange={e => setFormData({...formData, authorName: e.target.value})} className={`w-full px-4 py-2.5 bg-white border rounded-[12px] text-[13px] font-medium text-slate-700 outline-none transition-all ${errors.authorName ? 'border-rose-300' : 'border-slate-200 focus:border-blue-300 shadow-sm'}`} placeholder="Name" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-0.5">Author Role *</label>
-                        <input value={formData.authorRole} onChange={e => setFormData({...formData, authorRole: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-[12px] text-[13px] font-medium text-slate-700 outline-none focus:border-blue-300 shadow-sm" placeholder="Role" />
+                        <input value={formData.authorRole} onChange={e => setFormData({...formData, authorRole: e.target.value})} className={`w-full px-4 py-2.5 bg-white border rounded-[12px] text-[13px] font-medium text-slate-700 outline-none transition-all ${errors.authorRole ? 'border-rose-300' : 'border-slate-200 focus:border-blue-300 shadow-sm'}`} placeholder="Role" />
                       </div>
                    </div>
                    <div className="space-y-1.5">
                      <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-0.5">Author Avatar URL</label>
-                     <input value={formData.authorImageUrl} onChange={e => setFormData({...formData, authorImageUrl: e.target.value})} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] text-[13px] text-slate-500 outline-none focus:border-blue-300 shadow-sm" placeholder="Profile image URL" />
+                     <input value={formData.authorImageUrl} onChange={e => setFormData({...formData, authorImageUrl: e.target.value})} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] text-[13px] text-slate-500 outline-none focus:border-blue-400 shadow-sm" placeholder="Profile image URL" />
                    </div>
                 </div>
              </div>
@@ -442,7 +454,13 @@ const Blogs: React.FC<BlogsProps> = ({ blogs, setBlogs, role }) => {
               Cancel
             </button>
             <button 
-              onClick={confirmDelete}
+              onClick={() => {
+                if (blogToDelete) {
+                  setBlogs(prev => prev.filter(b => b.id !== blogToDelete.id));
+                  setIsDeleteModalOpen(false);
+                  setBlogToDelete(null);
+                }
+              }}
               className="bg-rose-600 text-white px-8 py-2.5 rounded-[10px] font-medium flex items-center gap-2 hover:bg-rose-700 transition-all text-[13px] shadow-sm"
             >
               <Trash2 size={18} /> Yes, delete
